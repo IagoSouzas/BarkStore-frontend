@@ -12,6 +12,13 @@ function parseQuery(query) {
   return out;
 }
 
+// Escolhe a tela de confirmação a partir do status do pedido no backend (fonte da verdade).
+export function resolverTelaConfirmacao(statusPedido) {
+  if (statusPedido === 'Pago' || statusPedido === 'Em preparo' || statusPedido === 'Entregue') return 'sucesso';
+  if (statusPedido === 'Cancelado') return 'recusado';
+  return 'pendente';
+}
+
 function montar(status, pedido, paymentId) {
   if (!pedido || !RESULTADOS.includes(status)) return null;
   return { pedidoId: pedido, status, paymentId: paymentId || null };

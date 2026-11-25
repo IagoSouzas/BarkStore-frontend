@@ -1,6 +1,6 @@
 // Verificação sem dispositivo da leitura da URL de retorno do Mercado Pago. Rodar: node --experimental-default-type=module scripts/check-mp-return.mjs
 import assert from 'node:assert/strict';
-import { parseMpReturn } from '../src/mpReturn.js';
+import { parseMpReturn, resolverTelaConfirmacao } from '../src/mpReturn.js';
 
 // 1) deep link do app (vindo do redirect do backend)
 assert.deepStrictEqual(
@@ -19,5 +19,13 @@ assert.equal(parseMpReturn('https://www.mercadopago.com.br/checkout/v1/redirect'
 
 // 4) retorno sem pedido não serve
 assert.equal(parseMpReturn('barkstore://pagamento/retorno'), null);
+
+// 5) tela de confirmação segundo o status do pedido no backend
+assert.equal(resolverTelaConfirmacao('Pago'), 'sucesso');
+assert.equal(resolverTelaConfirmacao('Em preparo'), 'sucesso');
+assert.equal(resolverTelaConfirmacao('Entregue'), 'sucesso');
+assert.equal(resolverTelaConfirmacao('Aguardando pagamento'), 'pendente');
+assert.equal(resolverTelaConfirmacao('Cancelado'), 'recusado');
+assert.equal(resolverTelaConfirmacao('algo novo'), 'pendente');
 
 console.log('ok');
