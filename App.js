@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -6,10 +7,12 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from './src/theme';
+import { parseMpReturn } from './src/mpReturn';
 import { StoreProvider, navigationRef } from './src/store';
 import { Splash, Login, Register } from './src/screens/auth';
 import { Home, Products, ProductDetail } from './src/screens/shop';
 import { Cart, Payment, Confirmation } from './src/screens/checkout';
+import MercadoPagoCheckout from './src/screens/MercadoPagoCheckout';
 import { MyPlans, CreatePlan, ManagePlan } from './src/screens/plans';
 import { Profile, EditProfile, Orders, MyPets, AddPet, Addresses, AddAddress, PaymentMethods } from './src/screens/profile';
 
@@ -22,6 +25,7 @@ const detail = (S) => (
     <S.Screen name="ProductDetail" component={ProductDetail} />
     <S.Screen name="Cart" component={Cart} />
     <S.Screen name="Payment" component={Payment} />
+    <S.Screen name="MercadoPagoCheckout" component={MercadoPagoCheckout} />
     <S.Screen name="Confirmation" component={Confirmation} />
     <S.Screen name="CreatePlan" component={CreatePlan} />
     <S.Screen name="ManagePlan" component={ManagePlan} />
@@ -77,6 +81,17 @@ function Tabs() {
 }
 
 export default function App() {
+  // Retorno pelo deep link barkstore:// (navegador do sistema ou WebView que não interceptou): leva à confirmação.
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      const retorno = parseMpReturn(url);
+      if (retorno && navigationRef.isReady()) {
+        navigationRef.navigate('Confirmation', retorno);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <StoreProvider>

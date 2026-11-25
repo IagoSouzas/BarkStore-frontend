@@ -7,6 +7,7 @@ import { colors, fonts } from '../theme';
 import { useStore } from '../store';
 import { images } from '../data';
 import { isEmail } from '../utils';
+import { login } from '../api';
 
 const Title = ({ t, sub }) => (
   <View style={{ alignItems: 'center', marginVertical: 24 }}>
@@ -22,7 +23,7 @@ export function Login({ navigation }) {
   const [show, setShow] = useState(false);
   const [err, setErr] = useState({});
   const { setUser, user } = useStore();
-  const enter = () => {
+  const enter = async () => {
     const e = {};
     if (!email.trim()) e.email = 'Informe seu e-mail.';
     else if (!isEmail(email)) e.email = 'E-mail inválido. Ex.: nome@email.com';
@@ -30,6 +31,12 @@ export function Login({ navigation }) {
     else if (pass.length < 6) e.pass = 'A senha deve ter ao menos 6 caracteres.';
     setErr(e);
     if (Object.keys(e).length) return;
+    try {
+      await login(email.trim(), pass);
+    } catch (error) {
+      Alert.alert('Login', error.message);
+      return;
+    }
     setUser({ ...user, email: email.trim() });
     navigation.replace('Main');
   };

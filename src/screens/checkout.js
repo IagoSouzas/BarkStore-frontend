@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Header, AppHeader, BackRow, Card, Button, Stepper, ProductImage, Row, H } from '../components';
-import { colors, fonts, money, fmtDate } from '../theme';
-import { paymentMethods } from '../data';
+import { colors, fonts, money } from '../theme';
+import { apiFetch } from '../api';
+import { APP_ENV } from '../config';
+import { resolverTelaConfirmacao } from '../mpReturn';
 import { useStore } from '../store';
+
+const CONSULTAS_MAX = 5;
+const INTERVALO_MS = 3000;
 
 export function Cart({ navigation }) {
   const { cartItems, changeQty, removeItem, subtotal } = useStore();
@@ -40,9 +45,22 @@ export function Cart({ navigation }) {
 }
 
 export function Payment({ navigation }) {
-  const { cartItems, subtotal, placeOrder } = useStore();
-  const [method, setMethod] = useState(0);
-  const pay = () => { placeOrder(); navigation.navigate('Confirmation'); };
+  const { cartItems, subtotal } = useStore();
+  const [loading, setLoading] = useState(false);
+  // Única chamada ao backend nesta tela: cria o pedido e a preferência do Checkout Pro.
+  const pay = async () => {
+    setLoading(true);
+    try {
+      const itens = cartItems.map((i) => ({ produtoId: i.id, quantidade: i.qty }));
+      const r = await apiFetch('/pagamentos/checkout', { method: 'POST', body: { itens } });
+      const url = APP_ENV === 'production' ? r.initPoint : (r.sandboxInitPoint || r.initPoint);
+      navigation.navigate('MercadoPagoCheckout', { url, pedidoId: r.pedidoId, preferenciaId: r.preferenciaId });
+    } catch (error) {
+      Alert.alert('Pagamento', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <Screen>
       <Header showBack title="Pagamento" navigation={navigation} />
@@ -56,41 +74,114 @@ export function Payment({ navigation }) {
         ))}
       </Card>
       <H style={{ fontSize: fonts.h2 }}>Forma de pagamento</H>
-      {paymentMethods.map((m, idx) => (
-        <Card key={m} onPress={() => setMethod(idx)} style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderWidth: 1.5, borderColor: method === idx ? colors.primary : colors.border }}>
-          <Ionicons name={m === 'PIX' ? 'qr-code-outline' : m === 'Boleto' ? 'barcode-outline' : 'card-outline'} size={24} color={colors.primary} />
-          <Text style={{ flex: 1, marginLeft: 12, fontWeight: '700', fontSize: fonts.subtitle }}>{m}</Text>
-          <Ionicons name={method === idx ? 'checkmark-circle' : 'chevron-forward'} size={22} color={method === idx ? colors.primary : colors.muted} />
-        </Card>
-      ))}
+      <Text style={{ color: colors.muted, marginBottom: 12 }}>Você escolherá cartão, PIX ou boleto na página segura do Mercado Pago.</Text>
       <Row bold left={<Text style={{ fontWeight: '700', fontSize: fonts.h3 }}>Total</Text>} right={<Text style={{ color: colors.primary, fontWeight: '800', fontSize: fonts.h2 }}>{money(subtotal)}</Text>} />
-      <Button title={`Pagar ${money(subtotal)}`} onPress={pay} />
+      <Button title={loading ? 'Abrindo pagamento...' : `Pagar ${money(subtotal)}`} disabled={loading || cartItems.length === 0} onPress={pay} />
       <Text style={{ textAlign: 'center', color: colors.muted, fontWeight: '600' }}>🔒 Pagamento seguro</Text>
     </Screen>
   );
 }
 
-export function Confirmation({ navigation }) {
-  const { lastOrder } = useStore();
+// Mostra o resultado real do pedido, consultado no backend (não no retorno do navegador).
+export function Confirmation({ navigation, route }) {
+  const { clearCart } = useStore();
+  const { pedidoId, paymentId } = route.params || {};
+  const [pedido, setPedido] = useState(null);
+  const [erro, setErro] = useState(null);
+  const [emAnalise, setEmAnalise] = useState(false);
+
+  useEffect(() => {
+    if (!pedidoId) return undefined;
+    let ativo = true;
+    let consultas = 0;
+    const consultar = async () => {
+      if (!ativo) return;
+      try {
+        const query = paymentId ? `?paymentId=${encodeURIComponent(paymentId)}` : '';
+        const r = await apiFetch(`/pedidos/${pedidoId}/pagamento${query}`);
+        if (!ativo) return;
+        setPedido(r);
+        if (r.statusPedido === 'Aguardando pagamento') {
+          consultas += 1;
+          if (consultas < CONSULTAS_MAX) {
+            setTimeout(consultar, INTERVALO_MS);
+          } else {
+            setEmAnalise(true);
+          }
+        }
+      } catch (e) {
+        if (ativo) setErro(e.message);
+      }
+    };
+    consultar();
+    return () => { ativo = false; };
+  }, [pedidoId, paymentId]);
+
+  // O pedido já existe no backend (com ou sem pagamento aprovado): o carrinho local é esvaziado.
+  useEffect(() => {
+    if (pedido && resolverTelaConfirmacao(pedido.statusPedido) !== 'recusado') clearCart();
+  }, [pedido]);
+
+  if (!pedidoId) {
+    return (
+      <Screen>
+        <Header showBack navigation={navigation} />
+        <Text style={{ textAlign: 'center', color: colors.muted, marginTop: 40 }}>Nenhum pedido para mostrar.</Text>
+        <Button title="Voltar ao início" onPress={() => navigation.navigate('Início')} style={{ marginTop: 20 }} />
+      </Screen>
+    );
+  }
+
+  if (erro) {
+    return (
+      <Screen>
+        <Header showBack navigation={navigation} />
+        <Text style={{ textAlign: 'center', color: colors.danger, marginTop: 40 }}>{erro}</Text>
+        <Button title="Voltar ao início" onPress={() => navigation.navigate('Início')} style={{ marginTop: 20 }} />
+      </Screen>
+    );
+  }
+
+  if (!pedido) {
+    return (
+      <Screen>
+        <Header showBack navigation={navigation} />
+        <View style={{ alignItems: 'center', marginTop: 60 }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ color: colors.muted, marginTop: 16 }}>Confirmando pagamento...</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  const tela = resolverTelaConfirmacao(pedido.statusPedido);
+  const aprovado = tela === 'sucesso';
+  const recusado = tela === 'recusado';
+  const titulo = aprovado ? 'Pedido confirmado!' : recusado ? 'Pagamento não aprovado' : (emAnalise ? 'Pagamento em análise' : 'Pagamento pendente');
+  const subtitulo = aprovado
+    ? 'Seu pedido foi realizado com sucesso.\nObrigado por confiar na Bark Store!'
+    : recusado
+      ? 'O Mercado Pago não aprovou este pagamento. Você pode tentar novamente pelo carrinho.'
+      : 'Avisaremos quando o pagamento for aprovado.';
+  const corIcone = aprovado ? colors.success : recusado ? colors.danger : colors.accent;
+  const icone = aprovado ? 'checkmark' : recusado ? 'close' : 'time-outline';
+
   return (
     <Screen>
       <Header showBack navigation={navigation} />
       <View style={{ alignItems: 'center', marginTop: 40 }}>
-        <View style={{ width: 90, height: 90, borderRadius: 45, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="checkmark" size={56} color="#fff" />
+        <View style={{ width: 90, height: 90, borderRadius: 45, backgroundColor: corIcone, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name={icone} size={56} color="#fff" />
         </View>
-        <Text style={{ fontSize: fonts.h1, fontWeight: '800', marginTop: 24 }}>Pedido confirmado!</Text>
-        <Text style={{ color: colors.muted, textAlign: 'center', fontSize: fonts.subtitle, marginVertical: 12 }}>
-          {'Seu pedido foi realizado com sucesso.\nObrigado por confiar na Bark Store!'}
-        </Text>
+        <Text style={{ fontSize: fonts.h1, fontWeight: '800', marginTop: 24 }}>{titulo}</Text>
+        <Text style={{ color: colors.muted, textAlign: 'center', fontSize: fonts.subtitle, marginVertical: 12 }}>{subtitulo}</Text>
       </View>
-      {lastOrder && (
-        <Card style={{ padding: 20 }}>
-          <Text style={{ fontWeight: '800', fontSize: fonts.subtitle }}>Pedido #{lastOrder.id}</Text>
-          <Text style={{ color: colors.muted, marginTop: 6 }}>Data do pedido: {fmtDate(lastOrder.date)}</Text>
-          <Text style={{ color: colors.muted, marginTop: 6 }}>Entrega estimada: em até 5 dias úteis</Text>
-        </Card>
-      )}
+      <Card style={{ padding: 20 }}>
+        <Text style={{ fontWeight: '800', fontSize: fonts.subtitle }}>Pedido #{pedido.pedidoId}</Text>
+        <Text style={{ color: colors.muted, marginTop: 6 }}>Status: {pedido.statusPedido}</Text>
+        {aprovado && <Text style={{ color: colors.muted, marginTop: 6 }}>Entrega estimada: em até 5 dias úteis</Text>}
+      </Card>
+      {recusado && <Button title="Voltar ao carrinho" onPress={() => navigation.navigate('Cart')} style={{ marginTop: 20 }} />}
       <Button title="Voltar ao início" onPress={() => navigation.navigate('Início')} style={{ marginTop: 20 }} />
       <TouchableOpacity onPress={() => navigation.navigate('Products')} style={{ alignItems: 'center', marginTop: 6 }}>
         <Text style={{ color: colors.primary, fontWeight: '700' }}>← Continuar comprando</Text>

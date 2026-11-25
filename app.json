@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "barkstore",
-    "slug": "snack-e82f3e2e-b778-44a2-a0ac-3ca4a46d74d7",
+    "scheme": "barkstore",
+    "slug":"snack-e82f3e2e-b778-44a2-a0ac-3ca4a46d74d7",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
