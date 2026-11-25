@@ -1,6 +1,6 @@
 // Verificação sem dispositivo do cliente de API (src/api.js). Rodar: node scripts/check-api.mjs
 import assert from 'node:assert/strict';
-import { setToken, apiFetch, login } from '../src/api.js';
+import { setToken, apiFetch, login, cadastrar } from '../src/api.js';
 
 const calls = [];
 globalThis.fetch = async (url, init = {}) => {
@@ -35,5 +35,14 @@ assert.equal(calls[calls.length - 1].init.headers.Authorization, 'Bearer jwt');
 // 4) login com credenciais inválidas rejeita com a mensagem do backend
 responses.push(json(401, { message: 'E-mail ou senha inválidos' }));
 await assert.rejects(() => login('a@b.com', 'errada'), { message: 'E-mail ou senha inválidos' });
+
+// 5) cadastro envia POST /usuarios com nomeCompleto, email e senha; erro do backend vira Error
+responses.push(json(201, { id: 1, nomeCompleto: 'Ana Silva', email: 'ana@x.com' }));
+await cadastrar('Ana Silva', 'ana@x.com', 'senha123');
+assert.equal(calls[calls.length - 1].url.endsWith('/usuarios'), true);
+assert.equal(calls[calls.length - 1].init.method, 'POST');
+assert.equal(calls[calls.length - 1].init.body, '{"nomeCompleto":"Ana Silva","email":"ana@x.com","senha":"senha123"}');
+responses.push(json(400, { message: 'E-mail já cadastrado' }));
+await assert.rejects(() => cadastrar('Ana', 'ana@x.com', 'senha123'), { message: 'E-mail já cadastrado' });
 
 console.log('ok');

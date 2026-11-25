@@ -7,7 +7,7 @@ import { colors, fonts } from '../theme';
 import { useStore } from '../store';
 import { images } from '../data';
 import { isEmail } from '../utils';
-import { login } from '../api';
+import { login, cadastrar } from '../api';
 
 const Title = ({ t, sub }) => (
   <View style={{ alignItems: 'center', marginVertical: 24 }}>
@@ -63,7 +63,7 @@ export function Register({ navigation }) {
   const [err, setErr] = useState({});
   const { setUser } = useStore();
   const set = (k) => (v) => { setF({ ...f, [k]: v }); setErr({ ...err, [k]: null }); };
-  const create = () => {
+  const create = async () => {
     const e = {};
     if (f.name.trim().split(/\s+/).filter(Boolean).length < 2) e.name = 'Digite seu nome completo (nome e sobrenome).';
     if (!f.email.trim()) e.email = 'Informe seu e-mail.';
@@ -73,6 +73,13 @@ export function Register({ navigation }) {
     else if (f.pass !== f.pass2) e.pass2 = 'As senhas não conferem.';
     setErr(e);
     if (Object.keys(e).length) return;
+    try {
+      await cadastrar(f.name.trim(), f.email.trim(), f.pass);
+      await login(f.email.trim(), f.pass);
+    } catch (error) {
+      Alert.alert('Cadastro', error.message);
+      return;
+    }
     setUser({ name: f.name.trim(), email: f.email.trim(), phone: '' });
     navigation.replace('Main');
   };

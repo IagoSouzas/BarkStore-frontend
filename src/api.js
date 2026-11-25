@@ -6,6 +6,11 @@ export function setToken(value) {
   token = value;
 }
 
+// Cria o usuário no backend (POST /usuarios).
+export async function cadastrar(nomeCompleto, email, senha) {
+  await apiFetch('/usuarios', { method: 'POST', body: { nomeCompleto, email, senha } });
+}
+
 // Autentica no backend e guarda o JWT para as próximas chamadas.
 export async function login(email, senha) {
   const response = await apiFetch('/auth/login', { method: 'POST', body: { email, senha } });
