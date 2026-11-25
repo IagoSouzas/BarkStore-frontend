@@ -25,6 +25,7 @@ export function StoreProvider({ children }) {
       : [...c, { id: p.id, qty }]));
   const changeQty = (id, d) => setCart((c) => c.map((x) => (x.id === id ? { ...x, qty: Math.max(1, x.qty + d) } : x)));
   const removeItem = (id) => setCart((c) => c.filter((x) => x.id !== id));
+  const clearCart = () => setCart([]);
 
   const cartItems = cart.map((i) => ({ ...products.find((p) => p.id === i.id), qty: i.qty }));
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
@@ -41,7 +42,7 @@ export function StoreProvider({ children }) {
 
   const nextId = (arr) => Math.max(0, ...arr.map((x) => x.id)) + 1;
   const value = {
-    user, setUser, orders, favorites, toggleFavorite, cartItems, cartCount, subtotal, addToCart, changeQty, removeItem, placeOrder, lastOrder,
+    user, setUser, orders, favorites, toggleFavorite, cartItems, cartCount, subtotal, addToCart, changeQty, removeItem, placeOrder, clearCart, lastOrder,
     pets, addPet: (p) => setPets((a) => [...a, { ...p, id: nextId(a) }]),
     plans, addPlan: (p) => setPlans((a) => [...a, { ...p, id: nextId(a) }]),
     updatePlan: (id, patch) => setPlans((a) => a.map((p) => (p.id === id ? { ...p, ...patch } : p))),

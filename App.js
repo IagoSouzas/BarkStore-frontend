@@ -10,6 +10,7 @@ import { StoreProvider, navigationRef } from './src/store';
 import { Splash, Login, Register } from './src/screens/auth';
 import { Home, Products, ProductDetail } from './src/screens/shop';
 import { Cart, Payment, Confirmation } from './src/screens/checkout';
+import MercadoPagoCheckout from './src/screens/MercadoPagoCheckout';
 import { MyPlans, CreatePlan, ManagePlan } from './src/screens/plans';
 import { Profile, EditProfile, Orders, MyPets, AddPet, Addresses, AddAddress, PaymentMethods } from './src/screens/profile';
 
@@ -22,6 +23,7 @@ const detail = (S) => (
     <S.Screen name="ProductDetail" component={ProductDetail} />
     <S.Screen name="Cart" component={Cart} />
     <S.Screen name="Payment" component={Payment} />
+    <S.Screen name="MercadoPagoCheckout" component={MercadoPagoCheckout} />
     <S.Screen name="Confirmation" component={Confirmation} />
     <S.Screen name="CreatePlan" component={CreatePlan} />
     <S.Screen name="ManagePlan" component={ManagePlan} />

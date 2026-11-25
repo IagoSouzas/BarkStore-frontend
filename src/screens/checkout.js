@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Header, AppHeader, BackRow, Card, Button, Stepper, ProductImage, Row, H } from '../components';
 import { colors, fonts, money, fmtDate } from '../theme';
-import { paymentMethods } from '../data';
+import { apiFetch } from '../api';
+import { APP_ENV } from '../config';
 import { useStore } from '../store';
 
 export function Cart({ navigation }) {
@@ -40,9 +41,22 @@ export function Cart({ navigation }) {
 }
 
 export function Payment({ navigation }) {
-  const { cartItems, subtotal, placeOrder } = useStore();
-  const [method, setMethod] = useState(0);
-  const pay = () => { placeOrder(); navigation.navigate('Confirmation'); };
+  const { cartItems, subtotal } = useStore();
+  const [loading, setLoading] = useState(false);
+  // Única chamada ao backend nesta tela: cria o pedido e a preferência do Checkout Pro.
+  const pay = async () => {
+    setLoading(true);
+    try {
+      const itens = cartItems.map((i) => ({ produtoId: i.id, quantidade: i.qty }));
+      const r = await apiFetch('/pagamentos/checkout', { method: 'POST', body: { itens } });
+      const url = APP_ENV === 'production' ? r.initPoint : (r.sandboxInitPoint || r.initPoint);
+      navigation.navigate('MercadoPagoCheckout', { url, pedidoId: r.pedidoId, preferenciaId: r.preferenciaId });
+    } catch (error) {
+      Alert.alert('Pagamento', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <Screen>
       <Header showBack title="Pagamento" navigation={navigation} />
@@ -56,15 +70,9 @@ export function Payment({ navigation }) {
         ))}
       </Card>
       <H style={{ fontSize: fonts.h2 }}>Forma de pagamento</H>
-      {paymentMethods.map((m, idx) => (
-        <Card key={m} onPress={() => setMethod(idx)} style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderWidth: 1.5, borderColor: method === idx ? colors.primary : colors.border }}>
-          <Ionicons name={m === 'PIX' ? 'qr-code-outline' : m === 'Boleto' ? 'barcode-outline' : 'card-outline'} size={24} color={colors.primary} />
-          <Text style={{ flex: 1, marginLeft: 12, fontWeight: '700', fontSize: fonts.subtitle }}>{m}</Text>
-          <Ionicons name={method === idx ? 'checkmark-circle' : 'chevron-forward'} size={22} color={method === idx ? colors.primary : colors.muted} />
-        </Card>
-      ))}
+      <Text style={{ color: colors.muted, marginBottom: 12 }}>Você escolherá cartão, PIX ou boleto na página segura do Mercado Pago.</Text>
       <Row bold left={<Text style={{ fontWeight: '700', fontSize: fonts.h3 }}>Total</Text>} right={<Text style={{ color: colors.primary, fontWeight: '800', fontSize: fonts.h2 }}>{money(subtotal)}</Text>} />
-      <Button title={`Pagar ${money(subtotal)}`} onPress={pay} />
+      <Button title={loading ? 'Abrindo pagamento...' : `Pagar ${money(subtotal)}`} disabled={loading || cartItems.length === 0} onPress={pay} />
       <Text style={{ textAlign: 'center', color: colors.muted, fontWeight: '600' }}>🔒 Pagamento seguro</Text>
     </Screen>
   );
