@@ -6,6 +6,12 @@ export function setToken(value) {
   token = value;
 }
 
+// Autentica no backend e guarda o JWT para as próximas chamadas.
+export async function login(email, senha) {
+  const response = await apiFetch('/auth/login', { method: 'POST', body: { email, senha } });
+  setToken(response.token);
+}
+
 // Chama a API do backend. Lança Error com a mensagem do ApiError quando a resposta não é 2xx.
 export async function apiFetch(path, options = {}) {
   const headers = { Accept: 'application/json' };
