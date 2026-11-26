@@ -1,6 +1,6 @@
 // Verificação sem dispositivo do cliente de API (src/api.js). Rodar: node scripts/check-api.mjs
 import assert from 'node:assert/strict';
-import { setToken, apiFetch, login, cadastrar } from '../src/api.js';
+import { setToken, apiFetch, login, cadastrar, atualizarUsuario } from '../src/api.js';
 
 const calls = [];
 globalThis.fetch = async (url, init = {}) => {
@@ -44,5 +44,12 @@ assert.equal(calls[calls.length - 1].init.method, 'POST');
 assert.equal(calls[calls.length - 1].init.body, '{"nomeCompleto":"Ana Silva","email":"ana@x.com","senha":"senha123"}');
 responses.push(json(400, { message: 'E-mail já cadastrado' }));
 await assert.rejects(() => cadastrar('Ana', 'ana@x.com', 'senha123'), { message: 'E-mail já cadastrado' });
+
+// 6) atualizar perfil envia PUT /usuarios/me com nomeCompleto e email (sem senha)
+responses.push(json(200, { id: 1, nomeCompleto: 'Ana Maria Silva', email: 'ana2@x.com' }));
+await atualizarUsuario('Ana Maria Silva', 'ana2@x.com');
+assert.equal(calls[calls.length - 1].url.endsWith('/usuarios/me'), true);
+assert.equal(calls[calls.length - 1].init.method, 'PUT');
+assert.equal(calls[calls.length - 1].init.body, '{"nomeCompleto":"Ana Maria Silva","email":"ana2@x.com"}');
 
 console.log('ok');

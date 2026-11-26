@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen, Header, Card, Button, SmallButton, Input, Select } from '../components';
 import { colors, fonts, money } from '../theme';
 import { isEmail } from '../utils';
+import { atualizarUsuario } from '../api';
 import { states } from '../data';
 import { useStore, navigationRef } from '../store';
 
@@ -158,11 +159,11 @@ export function PaymentMethods({ navigation }) {
 const maskPhone = (t) => t.replace(/\D/g, '').slice(0, 11).replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d{1,4})$/, '$1-$2');
 
 export function EditProfile({ navigation }) {
-  const { user, setUser } = useStore();
+  const { user, sincronizarUsuario } = useStore();
   const [f, setF] = useState({ name: user.name, email: user.email, phone: user.phone || '' });
   const [err, setErr] = useState({});
   const set = (k) => (v) => { setF({ ...f, [k]: v }); setErr({ ...err, [k]: null }); };
-  const save = () => {
+  const save = async () => {
     const e = {};
     if (f.name.trim().split(/\s+/).filter(Boolean).length < 2) e.name = 'Digite seu nome completo (nome e sobrenome).';
     if (!isEmail(f.email)) e.email = 'E-mail inválido. Ex.: nome@email.com';
@@ -170,7 +171,13 @@ export function EditProfile({ navigation }) {
     if (digits && (digits.length < 10 || digits.length > 11)) e.phone = 'Telefone inválido. Use DDD + número.';
     setErr(e);
     if (Object.keys(e).length) return;
-    setUser({ name: f.name.trim(), email: f.email.trim(), phone: f.phone });
+    try {
+      await atualizarUsuario(f.name.trim(), f.email.trim());
+      await sincronizarUsuario();
+    } catch (error) {
+      Alert.alert('Perfil', error.message);
+      return;
+    }
     Alert.alert('Perfil atualizado', 'Suas informações foram salvas.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
   };
   return (

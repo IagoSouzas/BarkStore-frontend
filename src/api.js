@@ -11,6 +11,11 @@ export async function cadastrar(nomeCompleto, email, senha) {
   await apiFetch('/usuarios', { method: 'POST', body: { nomeCompleto, email, senha } });
 }
 
+// Atualiza nome e e-mail do usuário logado (PUT /usuarios/me). A senha não é alterada aqui.
+export async function atualizarUsuario(nomeCompleto, email) {
+  await apiFetch('/usuarios/me', { method: 'PUT', body: { nomeCompleto, email } });
+}
+
 // Autentica no backend e guarda o JWT para as próximas chamadas.
 export async function login(email, senha) {
   const response = await apiFetch('/auth/login', { method: 'POST', body: { email, senha } });
