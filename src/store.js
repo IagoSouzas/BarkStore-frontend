@@ -1,14 +1,19 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createNavigationContainerRef } from '@react-navigation/native';
-import { products, initialUser, initialPets, initialPlans, initialAddresses, initialCards, initialOrders } from './data';
+import { initialPets, initialPlans, initialAddresses, initialCards, initialOrders } from './data';
 import { fmtDate } from './theme';
+import { apiFetch } from './api';
+import { adaptarProduto, adaptarCategoria, adaptarUsuario } from './catalogo';
+import { IMAGENS_PRODUTO } from './assets';
 
 export const navigationRef = createNavigationContainerRef();
 const Ctx = createContext(null);
 export const useStore = () => useContext(Ctx);
 
 export function StoreProvider({ children }) {
-  const [user, setUser] = useState(initialUser);
+  const [user, setUser] = useState({ name: '', email: '', phone: '' });
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [cart, setCart] = useState([]);
   const [pets, setPets] = useState(initialPets);
   const [plans, setPlans] = useState(initialPlans);
@@ -17,6 +22,24 @@ export function StoreProvider({ children }) {
   const [lastOrder, setLastOrder] = useState(null);
   const [favorites, setFavorites] = useState([]);
   const [orders, setOrders] = useState(initialOrders);
+  // Catálogo vem da API (público). Não é guardado no navegador.
+  useEffect(() => {
+    let ativo = true;
+    Promise.all([apiFetch('/produtos'), apiFetch('/categorias')])
+      .then(([prods, cats]) => {
+        if (!ativo) return;
+        setProducts(prods.map((p) => ({ ...adaptarProduto(p), image: IMAGENS_PRODUTO[p.imagemChave] })));
+        setCategories(cats.map(adaptarCategoria));
+      })
+      .catch(() => {});
+    return () => { ativo = false; };
+  }, []);
+
+  // Dados do usuário logado vêm de GET /usuarios/me (precisa do token já definido pelo login).
+  const sincronizarUsuario = async () => {
+    setUser(adaptarUsuario(await apiFetch('/usuarios/me')));
+  };
+
   const toggleFavorite = (id) => setFavorites((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
 
   const addToCart = (p, qty = 1) =>
@@ -42,7 +65,7 @@ export function StoreProvider({ children }) {
 
   const nextId = (arr) => Math.max(0, ...arr.map((x) => x.id)) + 1;
   const value = {
-    user, setUser, orders, favorites, toggleFavorite, cartItems, cartCount, subtotal, addToCart, changeQty, removeItem, placeOrder, clearCart, lastOrder,
+    user, setUser, sincronizarUsuario, products, categories, orders, favorites, toggleFavorite, cartItems, cartCount, subtotal, addToCart, changeQty, removeItem, placeOrder, clearCart, lastOrder,
     pets, addPet: (p) => setPets((a) => [...a, { ...p, id: nextId(a) }]),
     plans, addPlan: (p) => setPlans((a) => [...a, { ...p, id: nextId(a) }]),
     updatePlan: (id, patch) => setPlans((a) => a.map((p) => (p.id === id ? { ...p, ...patch } : p))),

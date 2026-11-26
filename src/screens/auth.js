@@ -22,7 +22,7 @@ export function Login({ navigation }) {
   const [pass, setPass] = useState('');
   const [show, setShow] = useState(false);
   const [err, setErr] = useState({});
-  const { setUser, user } = useStore();
+  const { sincronizarUsuario } = useStore();
   const enter = async () => {
     const e = {};
     if (!email.trim()) e.email = 'Informe seu e-mail.';
@@ -33,11 +33,11 @@ export function Login({ navigation }) {
     if (Object.keys(e).length) return;
     try {
       await login(email.trim(), pass);
+      await sincronizarUsuario();
     } catch (error) {
       Alert.alert('Login', error.message);
       return;
     }
-    setUser({ ...user, email: email.trim() });
     navigation.replace('Main');
   };
   return (
@@ -61,7 +61,7 @@ export function Login({ navigation }) {
 export function Register({ navigation }) {
   const [f, setF] = useState({ name: '', email: '', pass: '', pass2: '' });
   const [err, setErr] = useState({});
-  const { setUser } = useStore();
+  const { sincronizarUsuario } = useStore();
   const set = (k) => (v) => { setF({ ...f, [k]: v }); setErr({ ...err, [k]: null }); };
   const create = async () => {
     const e = {};
@@ -76,11 +76,11 @@ export function Register({ navigation }) {
     try {
       await cadastrar(f.name.trim(), f.email.trim(), f.pass);
       await login(f.email.trim(), f.pass);
+      await sincronizarUsuario();
     } catch (error) {
       Alert.alert('Cadastro', error.message);
       return;
     }
-    setUser({ name: f.name.trim(), email: f.email.trim(), phone: '' });
     navigation.replace('Main');
   };
   return (

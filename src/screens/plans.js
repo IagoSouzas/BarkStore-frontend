@@ -3,7 +3,7 @@ import { View, Text, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Header, Card, Button, Select, ProductImage, CheckCircle, H } from '../components';
 import { colors, fonts, money, fmtDate, addDays } from '../theme';
-import { products, frequencies } from '../data';
+import { frequencies } from '../data';
 import { useStore } from '../store';
 
 const freqLabel = (days) => (frequencies.find((f) => f.days === days) || { label: `A cada ${days} dias` }).label;
@@ -11,7 +11,7 @@ const daysOf = (label) => frequencies.find((f) => f.label === label).days;
 const planName = (pet) => `Plano ${pet?.name === 'Luna' ? 'da' : 'do'} ${pet?.name}`;
 
 export function MyPlans({ navigation }) {
-  const { plans, pets } = useStore();
+  const { plans, pets, products } = useStore();
   return (
     <Screen>
       <Header showBack navigation={navigation} title="Meus Planos" />
@@ -21,7 +21,7 @@ export function MyPlans({ navigation }) {
           <Card key={pl.id} onPress={() => navigation.navigate('ManagePlan', { id: pl.id })} style={{ flexDirection: 'row', alignItems: 'center', padding: 18 }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: fonts.h3, fontWeight: '800' }}>{pet?.emoji} {planName(pet)}</Text>
-              {pl.productIds.map((id) => <Text key={id} style={{ color: colors.muted, fontSize: fonts.subtitle }}>{products.find((p) => p.id === id).name}</Text>)}
+              {pl.productIds.map((id) => <Text key={id} style={{ color: colors.muted, fontSize: fonts.subtitle }}>{products.find((p) => p.id === id)?.name}</Text>)}
               <Text style={{ color: colors.primary, fontWeight: '600', marginTop: 6, fontSize: fonts.subtitle }}>🔄 {freqLabel(pl.days)}</Text>
               <Text style={{ color: colors.muted, fontSize: 13 }}>Próxima entrega: {pl.nextDelivery}</Text>
             </View>
@@ -34,7 +34,7 @@ export function MyPlans({ navigation }) {
   );
 }
 
-function ProductPick({ selected, toggle }) {
+function ProductPick({ selected, toggle, products }) {
   return products.map((p) => (
     <Card key={p.id} onPress={() => toggle(p.id)} style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
       <ProductImage product={p} size={56} />
@@ -48,7 +48,7 @@ function ProductPick({ selected, toggle }) {
 }
 
 export function CreatePlan({ navigation, route }) {
-  const { pets, addPlan } = useStore();
+  const { pets, addPlan, products } = useStore();
   const [petId, setPetId] = useState(pets[0]?.id);
   const [sel, setSel] = useState(route.params?.productId ? [route.params.productId] : [1, 2]);
   const [freq, setFreq] = useState('A cada 30 dias');
@@ -74,7 +74,7 @@ export function CreatePlan({ navigation, route }) {
         </Card>
       ))}
       <H>Escolha os produtos</H>
-      <ProductPick selected={sel} toggle={toggle} />
+      <ProductPick selected={sel} toggle={toggle} products={products} />
       <H>Frequência de entrega</H>
       <Select value={freq} options={frequencies.map((f) => f.label)} onChange={setFreq} />
       <Button title="Criar meu plano →" onPress={create} />
@@ -83,7 +83,7 @@ export function CreatePlan({ navigation, route }) {
 }
 
 export function ManagePlan({ navigation, route }) {
-  const { plans, pets, updatePlan, deletePlan } = useStore();
+  const { plans, pets, updatePlan, deletePlan, products } = useStore();
   const plan = plans.find((p) => p.id === route.params.id);
   const [sel, setSel] = useState(plan?.productIds || []);
   const [freq, setFreq] = useState(freqLabel(plan?.days));
@@ -105,7 +105,7 @@ export function ManagePlan({ navigation, route }) {
       <Text style={{ fontSize: fonts.h3, fontWeight: '800' }}>{pet?.emoji} {planName(pet)}</Text>
       <Text style={{ color: colors.muted, marginVertical: 4 }}>{pet?.desc}</Text>
       <H>Produtos do plano</H>
-      <ProductPick selected={sel} toggle={toggle} />
+      <ProductPick selected={sel} toggle={toggle} products={products} />
       <H>Frequência de entrega</H>
       <Select value={freq} options={frequencies.map((f) => f.label)} onChange={setFreq} />
       <Text style={{ color: colors.muted }}>Próxima entrega</Text>

@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Screen, AppHeader, BackRow, SearchBar, CategoryCarousel, ProductCard, Card, Button, Stepper, ProductImage, H } from '../components';
 import { colors, fonts, money, radius } from '../theme';
-import { categories, products, images } from '../data';
+import { images } from '../data';
 import { useStore } from '../store';
 import { norm } from '../utils';
 
 // Busca por nome, nome curto ou categoria, sem diferenciar acentos/maiúsculas
-const filterProducts = (q, cat) => {
+const filterProducts = (products, categories, q, cat) => {
   const n = norm(q.trim());
   return products.filter((p) => {
     const cats = p.categories.map((id) => (categories.find((c) => c.id === id) || {}).title || '').join(' ');
@@ -40,10 +40,10 @@ const SectionTitle = ({ title, onSeeAll }) => (
 );
 
 export function Home({ navigation }) {
-  const { plans, favorites, toggleFavorite, addToCart } = useStore();
+  const { plans, favorites, toggleFavorite, addToCart, products, categories } = useStore();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState(null);
-  const filtered = filterProducts(q, cat);
+  const filtered = filterProducts(products, categories, q, cat);
   const list = q.trim() || cat ? filtered : filtered.filter((p) => p.featured);
   const next = plans[0];
   const nextProduct = next && products.find((p) => p.id === next.productIds[0]);
@@ -79,11 +79,11 @@ export function Home({ navigation }) {
 }
 
 export function Products({ navigation, route }) {
-  const { favorites, toggleFavorite, addToCart } = useStore();
+  const { favorites, toggleFavorite, addToCart, products, categories } = useStore();
   const [q, setQ] = useState((route.params && route.params.q) || '');
   const [cat, setCat] = useState(null);
   useEffect(() => { if (route.params && route.params.q !== undefined) setQ(route.params.q); }, [route.params && route.params.q]);
-  const list = filterProducts(q, cat);
+  const list = filterProducts(products, categories, q, cat);
   const filtering = q.trim() !== '' || cat !== null;
   return (
     <Screen>
@@ -118,9 +118,17 @@ export function Products({ navigation, route }) {
 }
 
 export function ProductDetail({ navigation, route }) {
-  const p = products.find((x) => x.id === route.params.id);
-  const { addToCart } = useStore();
+  const { addToCart, products } = useStore();
   const [qty, setQty] = useState(1);
+  const p = products.find((x) => x.id === route.params.id);
+  if (!p) {
+    return (
+      <Screen>
+        <BackRow navigation={navigation} />
+        <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 30 }}>Carregando produto...</Text>
+      </Screen>
+    );
+  }
   return (
     <Screen>
       <AppHeader navigation={navigation} />
